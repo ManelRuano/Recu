@@ -3,45 +3,51 @@ package com.mygdx.game;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.GL20;
-import com.badlogic.gdx.scenes.scene2d.InputEvent;
+import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.scenes.scene2d.Stage;
-import com.badlogic.gdx.scenes.scene2d.ui.Label;
 import com.badlogic.gdx.scenes.scene2d.ui.Skin;
-import com.badlogic.gdx.scenes.scene2d.ui.Table;
+import com.badlogic.gdx.scenes.scene2d.ui.Image;
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton;
+import com.badlogic.gdx.scenes.scene2d.InputEvent;
 import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
-import com.mygdx.game.MyLibGDXGame;
 
-public class MainMenuScreen implements Screen {
+public class InventoryScreen implements Screen {
     private final MyLibGDXGame game;
     private Stage stage;
     private Skin skin;
 
-    public MainMenuScreen(final MyLibGDXGame game) {
+    public InventoryScreen(final MyLibGDXGame game) {
         this.game = game;
         stage = new Stage(new ScreenViewport());
         skin = new Skin(Gdx.files.internal("uiskin.json"));
 
-        // Crear tabla para organizar los elementos
-        Table table = new Table();
-        table.setFillParent(true);
-        stage.addActor(table);
+        // Crear la imagen de la mochila
+        Texture mochilaTexture = new Texture(Gdx.files.internal("Mochila.jpeg"));
+        Image mochilaImage = new Image(mochilaTexture);
+        mochilaImage.setPosition(
+                Gdx.graphics.getWidth() / 2 - mochilaImage.getWidth() / 2,
+                Gdx.graphics.getHeight() / 2 - mochilaImage.getHeight() / 2
+        );
 
-        // Crear y agregar el texto de bienvenida
-        Label welcomeLabel = new Label("Bienvenido, clique para empezar", skin);
-        table.add(welcomeLabel).padBottom(20).row();
+        // Agregar la imagen al stage
+        stage.addActor(mochilaImage);
 
-        // Crear y agregar el botón de inicio
-        TextButton startButton = new TextButton("Empezar", skin);
-        startButton.addListener(new ClickListener() {
+        // Crear el botón de regreso
+        TextButton backButton = new TextButton("Volver al juego", skin);
+        backButton.setPosition(20, 20); // Ajusta la posición del botón según tus necesidades
+
+        // Agregar el botón al stage
+        stage.addActor(backButton);
+
+        // Manejar la acción del botón
+        backButton.addListener(new ClickListener() {
             @Override
             public void clicked(InputEvent event, float x, float y) {
+                // Cambiar a la pantalla del juego
                 game.setScreen(new GameScreen(game));
             }
         });
-
-        table.add(startButton).width(200).height(80);
     }
 
     @Override
@@ -53,7 +59,7 @@ public class MainMenuScreen implements Screen {
     public void render(float delta) {
         Gdx.gl.glClearColor(0, 0, 0, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
-        stage.act(Math.min(Gdx.graphics.getDeltaTime(), 1 / 30f));
+        stage.act(Gdx.graphics.getDeltaTime());
         stage.draw();
     }
 
