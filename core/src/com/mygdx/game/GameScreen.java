@@ -17,6 +17,7 @@ import com.badlogic.gdx.scenes.scene2d.utils.ClickListener;
 import com.badlogic.gdx.utils.viewport.ScreenViewport;
 
 import java.util.ArrayList;
+import java.util.Random;
 
 public class GameScreen implements Screen {
     private final MyLibGDXGame game;
@@ -28,6 +29,8 @@ public class GameScreen implements Screen {
     private Texture touchpadKnob;
     private Texture playerTexture;
     private Texture backgroundTexture;
+    private Texture doorTexture;
+    private Rectangle doorBounds;
     private Animation<TextureRegion> walkAnimation;
     private float stateTime;
     private float playerX, playerY;
@@ -35,16 +38,22 @@ public class GameScreen implements Screen {
     private boolean isMoving;
     private boolean facingRight;
     private ArrayList<GameObject> objects;
+    private ArrayList<GameObject> inventory;
     private float savedPlayerX, savedPlayerY;
     private boolean savedIsMoving, savedFacingRight;
+    private final int MAX_OBJECTS = 5;
+    private Rectangle playerBounds;
+    private boolean showMessage = false;
+    private float messageTimer = 0f;
+    private static final float MESSAGE_DISPLAY_TIME = 3f;
 
     public GameScreen(final MyLibGDXGame game) {
         this.game = game;
         stage = new Stage(new ScreenViewport());
         skin = new Skin(Gdx.files.internal("uiskin.json"));
 
-        touchpadBackground = new Texture(Gdx.files.internal("touchpad.png"));
-        touchpadKnob = new Texture(Gdx.files.internal("touchpad.png"));
+        touchpadBackground = new Texture(Gdx.files.internal("cuadrado.png"));
+        touchpadKnob = new Texture(Gdx.files.internal("circulo.png"));
 
         touchpad = new Touchpad(10, skin);
         touchpad.setBounds(15, 15, 200, 200);
@@ -53,6 +62,8 @@ public class GameScreen implements Screen {
 
         playerTexture = new Texture(Gdx.files.internal("spritesheet.png"));
         backgroundTexture = new Texture(Gdx.files.internal("background.jpg"));
+        doorTexture = new Texture(Gdx.files.internal("Puerta.png"));
+        doorBounds = new Rectangle(Gdx.graphics.getWidth() - doorTexture.getWidth() / 4, Gdx.graphics.getHeight() - doorTexture.getHeight() / 4, doorTexture.getWidth() / 4, doorTexture.getHeight() / 4);
 
         TextureRegion[][] tmpFrames = TextureRegion.split(playerTexture, playerTexture.getWidth() / 2, playerTexture.getHeight() / 2);
         TextureRegion[] walkFrames = new TextureRegion[4];
@@ -67,14 +78,16 @@ public class GameScreen implements Screen {
         playerSpeed = 100f;
         isMoving = false;
         facingRight = true;
+        playerBounds = new Rectangle(playerX, playerY, walkFrames[0].getRegionWidth(), walkFrames[0].getRegionHeight());
 
         objects = new ArrayList<>();
-        objects.add(new GameObject(new Texture(Gdx.files.internal("banana.png")), 200, 200, 32, 32));
+        inventory = new ArrayList<>();
+        generateRandomObjects();
 
         // Crear el botón de inventario
         inventoryButton = new TextButton("Inventario", skin);
         inventoryButton.setSize(100, 50);
-        inventoryButton.setPosition(Gdx.graphics.getWidth() - 120, Gdx.graphics.getHeight() - 70);
+        inventoryButton.setPosition(Gdx.graphics.getWidth() - inventoryButton.getWidth() - 20, 20);
 
         inventoryButton.addListener(new ClickListener() {
             @Override
@@ -133,12 +146,37 @@ public class GameScreen implements Screen {
         }
 
         game.batch.draw(currentFrame, playerX, playerY);
+
+        for (GameObject object : objects) {
+            game.batch.draw(object.getTexture(), object.getX(), object.getY(), object.getWidth(), object.getHeight());
+        }
+
+        game.batch.draw(doorTexture, doorBounds.getX(), doorBounds.getY(), doorBounds.getWidth(), doorBounds.getHeight());
+
         game.batch.end();
 
         stage.act(Gdx.graphics.getDeltaTime());
         stage.draw();
 
+        // Actualizar la posición de la hitbox del personaje
+        playerBounds.setPosition(playerX, playerY);
+
         checkObjectCollision();
+        checkDoorCollision();
+
+        // Mostrar el mensaje si es necesario
+        if (showMessage) {
+            messageTimer += delta;
+            if (messageTimer < MESSAGE_DISPLAY_TIME) {
+                game.batch.begin();
+                // Dibujar el mensaje en la pantalla
+                // Aquí puedes usar el objeto SpriteBatch para dibujar el mensaje en la posición deseada
+                game.batch.end();
+            } else {
+                showMessage = false;
+                messageTimer = 0f;
+            }
+        }
     }
 
     @Override
@@ -163,6 +201,7 @@ public class GameScreen implements Screen {
         touchpadKnob.dispose();
         playerTexture.dispose();
         backgroundTexture.dispose();
+        doorTexture.dispose();
         for (GameObject object : objects) {
             object.dispose();
         }
@@ -170,45 +209,68 @@ public class GameScreen implements Screen {
 
     private void checkScreenBounds() {
         if (playerX < 0) {
-            // Cambiar a la pantalla izquierda
+            playerX = 0;
         } else if (playerX > Gdx.graphics.getWidth() - 130) {
-            // Cambiar a la pantalla derecha
+            playerX = Gdx.graphics.getWidth() - 130;
         } else if (playerY < 0) {
-            // Cambiar a la pantalla inferior
+            playerY = 0;
         } else if (playerY > Gdx.graphics.getHeight() - 130) {
-            // Cambiar a la pantalla superior
+            playerY = Gdx.graphics.getHeight() - 130;
         }
     }
 
     private void openInventory() {
-        game.setScreen(new InventoryScreen(game));
+        game.setScreen(new InventoryScreen(game, this, inventory));
     }
 
     private void checkObjectCollision() {
-        Rectangle playerBounds = new Rectangle(playerX, playerY, playerTexture.getWidth(), playerTexture.getHeight());
         for (int i = 0; i < objects.size(); i++) {
             GameObject object = objects.get(i);
             Rectangle objectBounds = object.getBounds();
             if (playerBounds.overlaps(objectBounds)) {
                 objects.remove(i);
-                // Lógica para agregar el objeto al inventario
+                inventory.add(object);
+                i--;
             }
         }
     }
 
+    private void checkDoorCollision() {
+        if (playerBounds.overlaps(doorBounds)) {
+            if (inventory.size() == MAX_OBJECTS) {
+                gameOver();
+            } else {
+                showMessage = true;
+            }
+        }
+    }
+
+    private void gameOver() {
+        game.setScreen(new GameOverScreen(game));
+    }
+
     private void saveGameState() {
-        // Guarda el estado actual del juego
         savedPlayerX = playerX;
         savedPlayerY = playerY;
         savedIsMoving = isMoving;
-
+        savedFacingRight = facingRight;
     }
 
-    private void loadGameState() {
-        // Carga el estado guardado del juego
+    public void loadGameState() {
         playerX = savedPlayerX;
         playerY = savedPlayerY;
         isMoving = savedIsMoving;
         facingRight = savedFacingRight;
+    }
+
+    private void generateRandomObjects() {
+        Random random = new Random();
+        Texture objectTexture = new Texture(Gdx.files.internal("banana.png"));
+
+        for (int i = 0; i < MAX_OBJECTS; i++) {
+            float x = random.nextFloat() * (Gdx.graphics.getWidth() - 32);
+            float y = random.nextFloat() * (Gdx.graphics.getHeight() - 32);
+            objects.add(new GameObject(objectTexture, x, y, 32, 32));
+        }
     }
 }
