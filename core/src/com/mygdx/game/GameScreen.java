@@ -5,6 +5,7 @@ import com.badlogic.gdx.Screen;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.Animation;
+import com.badlogic.gdx.graphics.g2d.BitmapFont;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.g2d.TextureRegion;
 import com.badlogic.gdx.math.Rectangle;
@@ -46,6 +47,8 @@ public class GameScreen implements Screen {
     private boolean showMessage = false;
     private float messageTimer = 0f;
     private static final float MESSAGE_DISPLAY_TIME = 3f;
+    private String messageText = "";
+    private BitmapFont font; // Declarar variable BitmapFont
 
     public GameScreen(final MyLibGDXGame game) {
         this.game = game;
@@ -80,10 +83,6 @@ public class GameScreen implements Screen {
         facingRight = true;
         playerBounds = new Rectangle(playerX, playerY, walkFrames[0].getRegionWidth(), walkFrames[0].getRegionHeight());
 
-        objects = new ArrayList<>();
-        inventory = new ArrayList<>();
-        generateRandomObjects();
-
         // Crear el botón de inventario
         inventoryButton = new TextButton("Inventario", skin);
         inventoryButton.setSize(100, 50);
@@ -98,6 +97,12 @@ public class GameScreen implements Screen {
         });
 
         stage.addActor(inventoryButton);
+
+        objects = new ArrayList<>();
+        inventory = new ArrayList<>();
+        generateRandomObjects();
+
+        font = new BitmapFont(); // Inicializar BitmapFont
     }
 
     @Override
@@ -153,6 +158,10 @@ public class GameScreen implements Screen {
 
         game.batch.draw(doorTexture, doorBounds.getX(), doorBounds.getY(), doorBounds.getWidth(), doorBounds.getHeight());
 
+        if (showMessage) {
+            font.draw(game.batch, messageText, 10, Gdx.graphics.getHeight() - 10); // Dibujar el mensaje en la parte superior izquierda
+        }
+
         game.batch.end();
 
         stage.act(Gdx.graphics.getDeltaTime());
@@ -167,12 +176,7 @@ public class GameScreen implements Screen {
         // Mostrar el mensaje si es necesario
         if (showMessage) {
             messageTimer += delta;
-            if (messageTimer < MESSAGE_DISPLAY_TIME) {
-                game.batch.begin();
-                // Dibujar el mensaje en la pantalla
-                // Aquí puedes usar el objeto SpriteBatch para dibujar el mensaje en la posición deseada
-                game.batch.end();
-            } else {
+            if (messageTimer >= MESSAGE_DISPLAY_TIME) {
                 showMessage = false;
                 messageTimer = 0f;
             }
@@ -205,6 +209,7 @@ public class GameScreen implements Screen {
         for (GameObject object : objects) {
             object.dispose();
         }
+        font.dispose(); // Liberar recursos de BitmapFont
     }
 
     private void checkScreenBounds() {
@@ -231,6 +236,8 @@ public class GameScreen implements Screen {
                 objects.remove(i);
                 inventory.add(object);
                 i--;
+                showMessage = true;
+                messageText = "Quedan " + (MAX_OBJECTS - inventory.size()) + " objetos por recoger.";
             }
         }
     }
@@ -241,6 +248,7 @@ public class GameScreen implements Screen {
                 gameOver();
             } else {
                 showMessage = true;
+                messageText = "Faltan " + (MAX_OBJECTS - inventory.size()) + " objetos para completar.";
             }
         }
     }
@@ -267,9 +275,33 @@ public class GameScreen implements Screen {
         Random random = new Random();
         Texture objectTexture = new Texture(Gdx.files.internal("banana.png"));
 
+        Rectangle touchpadBounds = new Rectangle(15, 15, 200, 200);
+        Rectangle inventoryButtonBounds = new Rectangle(
+                Gdx.graphics.getWidth() - inventoryButton.getWidth() - 20,
+                20,
+                inventoryButton.getWidth(),
+                inventoryButton.getHeight()
+        );
+        Rectangle doorBounds = new Rectangle(
+                Gdx.graphics.getWidth() - doorTexture.getWidth() / 4,
+                Gdx.graphics.getHeight() - doorTexture.getHeight() / 4,
+                doorTexture.getWidth() / 4,
+                doorTexture.getHeight() / 4
+        );
+
         for (int i = 0; i < MAX_OBJECTS; i++) {
-            float x = random.nextFloat() * (Gdx.graphics.getWidth() - 32);
-            float y = random.nextFloat() * (Gdx.graphics.getHeight() - 32);
+            float x, y;
+            Rectangle objectBounds;
+            boolean intersects;
+
+            do {
+                x = random.nextFloat() * (Gdx.graphics.getWidth() - 32);
+                y = random.nextFloat() * (Gdx.graphics.getHeight() - 32);
+                objectBounds = new Rectangle(x, y, 32, 32);
+
+                intersects = objectBounds.overlaps(touchpadBounds) || objectBounds.overlaps(inventoryButtonBounds) || objectBounds.overlaps(doorBounds);
+            } while (intersects);
+
             objects.add(new GameObject(objectTexture, x, y, 32, 32));
         }
     }
