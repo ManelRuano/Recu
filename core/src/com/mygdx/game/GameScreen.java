@@ -273,7 +273,7 @@ public class GameScreen implements Screen {
 
     private void generateRandomObjects() {
         Random random = new Random();
-        Texture objectTexture = new Texture(Gdx.files.internal("banana.png"));
+        Texture objectTexture = new Texture(Gdx.files.internal("Banana.png"));
 
         Rectangle touchpadBounds = new Rectangle(15, 15, 200, 200);
         Rectangle inventoryButtonBounds = new Rectangle(
